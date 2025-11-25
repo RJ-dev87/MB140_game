@@ -1,28 +1,3 @@
-<!--
-Simple 2D "Moorhuhn"-style shooter (single-file HTML).
-
-How to use
-1. Save this file as moorhuhn_logos_game.html in your project root.
-2. Put logo images in ./assets/ named exactly: audi.png, bmw.png, porsche.png, tesla.png, polestar.png, byd.png, mercedes.png
-   (or change the image paths in the `imagePaths` map below).
-3. Open the HTML file in a modern browser (double-click or use a local server).
-
-Notes & licensing
-- Logos are trademarks of their respective owners. Make sure you have the right to use them in your project or replace with user-provided artwork.
-- This demo uses simple circle fallbacks when an image fails to load so the game runs without logos.
-
-Scoring rules implemented:
-- Hit Mercedes => -100 points
-- Hit any other brand => +100 points
-
-Suggested GitHub layout:
-- /assets/*.png   (logo images)
-- moorhuhn_logos_game.html
-- README.md
-- LICENSE
-
-You can fork this into a repo and iterate from here (add sound, mobile input, levels, highscore backend).
--->
 
 <!doctype html>
 <html lang="de">
@@ -34,7 +9,7 @@ You can fork this into a repo and iterate from here (add sound, mobile input, le
     :root{--bg:#0b1220;--panel:#111827;--accent:#f59e0b}
     html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#132033);font-family:Inter,Arial,Helvetica,sans-serif;color:#fff}
     .wrap{display:flex;flex-direction:column;align-items:center;padding:12px}
-    canvas{background:linear-gradient(180deg,#0f1724, #071028);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+    canvas{background:#000;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
     .hud{width:800px;display:flex;justify-content:space-between;align-items:center;margin:8px 0}
     .hud .score{font-size:20px;font-weight:700}
     .hud .controls{font-size:13px;opacity:0.9}
@@ -65,7 +40,13 @@ You can fork this into a repo and iterate from here (add sound, mobile input, le
 
   const W = canvas.width, H = canvas.height;
 
-  // Configure brands and image paths (change if you put images elsewhere)
+  // Hintergrundbild laden
+  const backgroundImg = new Image();
+  backgroundImg.src = 'assets/background.png'; // Dein Bild hier
+  let bgLoaded = false;
+  backgroundImg.onload = () => { bgLoaded = true; };
+
+  // Marken und Logos
   const brands = ['Audi','BMW','Porsche','Tesla','Polestar','BYD','Mercedes'];
   const imagePaths = {
     'Audi': 'assets/audi.png',
@@ -77,16 +58,14 @@ You can fork this into a repo and iterate from here (add sound, mobile input, le
     'Mercedes': 'assets/mercedes.png'
   };
 
-  // Game settings
   let score = 0;
-  let entities = []; // active targets
+  let entities = [];
   let lastSpawn = 0;
-  const spawnInterval = 900; // ms between spawns (tweak)
+  const spawnInterval = 900;
   const targetMinSpeed = 0.6;
   const targetMaxSpeed = 2.0;
-  const gravity = 0; // set small positive to make fall
+  const gravity = 0;
 
-  // Preload images and create fallback drawings if missing
   const images = {};
   let loaded = 0, toLoad = brands.length;
 
@@ -111,21 +90,18 @@ You can fork this into a repo and iterate from here (add sound, mobile input, le
     img.onerror = () => { images[b] = makeFallbackCanvas(b.split(/[- ]/)[0].slice(0,3)); if(++loaded === toLoad) start(); };
   });
 
-  // Entities are objects: {x,y, vx, vy, brand, img, size, rot, rotSpeed}
   function spawnRandom(){
     const brand = brands[Math.floor(Math.random() * brands.length)];
-    const size = 64 + Math.random()*40; // visual size
-    // spawn at left or right edge
+    const size = 64 + Math.random()*40;
     const fromLeft = Math.random() < 0.5;
     const x = fromLeft ? -size : W + size;
     const y = 80 + Math.random() * (H - 160);
     const vx = (fromLeft ? 1 : -1) * (targetMinSpeed + Math.random() * (targetMaxSpeed - targetMinSpeed));
-    const vy = (Math.random()-0.5) * 0.6; // slight vertical
+    const vy = (Math.random()-0.5) * 0.6;
     const rotSpeed = (Math.random()-0.5) * 0.04;
     entities.push({x,y,vx,vy,brand,img:images[brand],size,rot:0,rotSpeed});
   }
 
-  // Game loop
   let lastTime = performance.now();
   let running = true;
 
@@ -137,42 +113,36 @@ You can fork this into a repo and iterate from here (add sound, mobile input, le
   function loop(t){
     const dt = t - lastTime; lastTime = t;
 
-    // spawn
     if (t - lastSpawn > spawnInterval) { spawnRandom(); lastSpawn = t; }
 
-    // update
     entities.forEach(e => {
       e.x += e.vx * dt * 0.06;
       e.y += e.vy * dt * 0.06 + gravity * dt * 0.0001;
       e.rot += e.rotSpeed * dt;
     });
 
-    // remove off-screen
     entities = entities.filter(e => e.x > -200 && e.x < W + 200 && e.y > -200 && e.y < H + 200);
 
-    // draw
-    ctx.clearRect(0,0,W,H);
-    // background subtle
-    ctx.fillStyle = 'rgba(255,255,255,0.015)';
-    ctx.fillRect(0,0,W,H);
+    // Hintergrund zeichnen
+    if (bgLoaded) {
+      ctx.drawImage(backgroundImg, 0, 0, W, H);
+    } else {
+      ctx.fillStyle = '#0f1724';
+      ctx.fillRect(0,0,W,H);
+    }
 
-    // draw entities
     entities.forEach(e => {
       ctx.save();
       ctx.translate(e.x, e.y);
       ctx.rotate(e.rot);
       const s = e.size;
-      // draw circular shadow
       ctx.globalAlpha = 0.25;
       ctx.beginPath(); ctx.ellipse(0, s*0.4, s*0.6, s*0.18, 0, 0, Math.PI*2); ctx.fillStyle = '#000'; ctx.fill();
       ctx.globalAlpha = 1;
-      // draw image centered
-      const img = e.img;
-      ctx.drawImage(img, -s/2, -s/2, s, s);
+      ctx.drawImage(e.img, -s/2, -s/2, s, s);
       ctx.restore();
     });
 
-    // draw crosshair at mouse
     if (mouse.x !== null){
       ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 18, 0, Math.PI*2);
       ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
@@ -180,13 +150,11 @@ You can fork this into a repo and iterate from here (add sound, mobile input, le
       ctx.stroke();
     }
 
-    // HUD
     ctx.fillStyle = '#fff'; ctx.font = '14px Arial'; ctx.fillText('Targets: ' + entities.length, 10, 18);
 
     if (running) requestAnimationFrame(loop);
   }
 
-  // Input handling
   const mouse = {x: null, y: null};
   canvas.addEventListener('mousemove', e => {
     const r = canvas.getBoundingClientRect(); mouse.x = (e.clientX - r.left) * (canvas.width / r.width); mouse.y = (e.clientY - r.top) * (canvas.height / r.height);
@@ -199,30 +167,23 @@ You can fork this into a repo and iterate from here (add sound, mobile input, le
     const mx = (e.clientX - r.left) * (canvas.width / r.width);
     const my = (e.clientY - r.top) * (canvas.height / r.height);
 
-    // find first entity within hit radius (topmost = last drawn => iterate from end)
     for (let i = entities.length - 1; i >= 0; i--){
       const ent = entities[i];
       const dx = mx - ent.x, dy = my - ent.y;
       const dist = Math.sqrt(dx*dx + dy*dy);
       const hitRadius = ent.size * 0.45;
       if (dist <= hitRadius){
-        // hit!
         const brand = ent.brand;
         if (brand === 'Mercedes') score -= 100; else score += 100;
         scoreEl.textContent = score;
-
-        // spawn a tiny hit animation
         spawnHit(ent.x, ent.y);
-
-        // remove the entity
         entities.splice(i,1);
-        break; // only one hit per click
+        break;
       }
     }
   });
 
   function spawnHit(x,y){
-    // simple particle burst
     const particles = [];
     for (let i=0;i<12;i++) particles.push({x,y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life:60+Math.random()*30});
     let frames = 0;
@@ -237,13 +198,8 @@ You can fork this into a repo and iterate from here (add sound, mobile input, le
     requestAnimationFrame(pLoop);
   }
 
-  // Restart button
   restartBtn.addEventListener('click', () => start());
 
-  // Start when images loaded
-  // If all images already loaded before start() call, start() is invoked from image onload/error handlers.
-
-  // Expose a few debugging helpers on window for quick tweaks in console
   window.__GAME = { entities, spawnRandom, setScore: s => { score = s; scoreEl.textContent = score; } };
 
 })();

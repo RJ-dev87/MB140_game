@@ -3,9 +3,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Moorhuhn-Logos — Demo</title>
-  <style>
+  <meta name="viewport">  <meta name="viewport" content="width=device-width,initial-scale=1">
     :root{--bg:#0b1220;--panel:#111827;--accent:#f59e0b}
     html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#132033);font-family:Inter,Arial,Helvetica,sans-serif;color:#fff}
     .wrap{display:flex;flex-direction:column;align-items:center;padding:12px}
@@ -15,6 +13,7 @@
     .hud .controls{font-size:13px;opacity:0.9}
     .footer{width:800px;color:#cbd5e1;font-size:13px;margin-top:8px}
     button{background:var(--accent);border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600}
+    .timer{font-size:20px;font-weight:700;margin-left:20px;color:#f59e0b}
   </style>
 </head>
 <body>
@@ -25,6 +24,7 @@
         <button id="restart">Neu starten</button>
         <span style="margin-left:12px">Klicke auf Logos, um zu schießen. Mercedes = -100, sonst +100.</span>
       </div>
+      <div class="timer">Zeit: <span id="timer">90</span>s</div>
     </div>
 
     <canvas id="game" width="800" height="600"></canvas>
@@ -36,6 +36,7 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const scoreEl = document.getElementById('score');
+  const timerEl = document.getElementById('timer');
   const restartBtn = document.getElementById('restart');
 
   const W = canvas.width, H = canvas.height;
@@ -69,6 +70,9 @@
   const images = {};
   let loaded = 0, toLoad = brands.length;
 
+  let gameTime = 90; // Sekunden
+  let running = true;
+
   function makeFallbackCanvas(text){
     const c = document.createElement('canvas');
     c.width = 120; c.height = 120;
@@ -97,27 +101,46 @@
     const x = fromLeft ? -size : W + size;
     const y = 80 + Math.random() * (H - 160);
     const vx = (fromLeft ? 1 : -1) * (targetMinSpeed + Math.random() * (targetMaxSpeed - targetMinSpeed));
-    const vy = (Math.random()-0.5) * 0.6;
-    const rotSpeed = (Math.random()-0.5) * 0.04;
-    entities.push({x,y,vx,vy,brand,img:images[brand],size,rot:0,rotSpeed});
+    const vy = 0; // Basisbewegung vertikal wird durch Welle ersetzt
+    const rotSpeed = (Math.random()-0.5) * 0.01; // langsamer
+    const wavePhase = Math.random() * Math.PI * 2;
+    const waveAmplitude = 30 + Math.random() * 20;
+    const waveFrequency = 0.002 + Math.random() * 0.001;
+    entities.push({x,y,vx,vy,brand,img:images[brand],size,rot:0,rotSpeed,wavePhase,waveAmplitude,waveFrequency});
   }
 
   let lastTime = performance.now();
-  let running = true;
 
   function start(){
     score = 0; entities = []; lastSpawn = performance.now(); lastTime = performance.now(); running = true; scoreEl.textContent = score;
+    gameTime = 90; timerEl.textContent = gameTime;
     requestAnimationFrame(loop);
+    countdown();
   }
+
+  function countdown(){
+    const interval = setInterval(() => {
+      if (!running) { clearInterval(interval); return; }
+      gameTime--;
+      timerEl.textContent = gameTime;
+      if (gameTime <= 0){
+        running = false;
+        clearInterval(interval);
+      }
+    }, 1000);
+  }
+
+  const floatingTexts = [];
 
   function loop(t){
     const dt = t - lastTime; lastTime = t;
 
-    if (t - lastSpawn > spawnInterval) { spawnRandom(); lastSpawn = t; }
+    if (running && t - lastSpawn > spawnInterval) { spawnRandom(); lastSpawn = t; }
 
     entities.forEach(e => {
       e.x += e.vx * dt * 0.06;
-      e.y += e.vy * dt * 0.06 + gravity * dt * 0.0001;
+      e.wavePhase += e.waveFrequency * dt;
+      e.y += Math.sin(e.wavePhase) * 0.5; // Wellenbewegung
       e.rot += e.rotSpeed * dt;
     });
 
@@ -131,6 +154,7 @@
       ctx.fillRect(0,0,W,H);
     }
 
+    // Entities zeichnen
     entities.forEach(e => {
       ctx.save();
       ctx.translate(e.x, e.y);
@@ -143,6 +167,18 @@
       ctx.restore();
     });
 
+    // Floating texts (Trefferpunkte)
+    floatingTexts.forEach(ft => {
+      ctx.globalAlpha = ft.alpha;
+      ctx.fillStyle = ft.color;
+      ctx.font = 'bold 24px Arial';
+      ctx.fillText(ft.text, ft.x, ft.y);
+      ft.y -= 0.5;
+      ft.alpha -= 0.02;
+    });
+    floatingTexts.filter(ft => ft.alpha > 0);
+
+    // Fadenkreuz
     if (mouse.x !== null){
       ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 18, 0, Math.PI*2);
       ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
@@ -150,9 +186,15 @@
       ctx.stroke();
     }
 
+    ctx.globalAlpha = 1;
     ctx.fillStyle = '#fff'; ctx.font = '14px Arial'; ctx.fillText('Targets: ' + entities.length, 10, 18);
 
     if (running) requestAnimationFrame(loop);
+    else {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 36px Arial';
+      ctx.fillText('Spiel vorbei! Punkte: ' + score, W/2 - 180, H/2);
+    }
   }
 
   const mouse = {x: null, y: null};
@@ -174,8 +216,18 @@
       const hitRadius = ent.size * 0.45;
       if (dist <= hitRadius){
         const brand = ent.brand;
-        if (brand === 'Mercedes') score -= 100; else score += 100;
+        const points = (brand === 'Mercedes') ? -100 : 100;
+        score += points;
         scoreEl.textContent = score;
+
+        floatingTexts.push({
+          text: (points > 0 ? '+' : '') + points,
+          x: ent.x,
+          y: ent.y,
+          color: points > 0 ? 'lime' : 'red',
+          alpha: 1
+        });
+
         spawnHit(ent.x, ent.y);
         entities.splice(i,1);
         break;
@@ -206,3 +258,4 @@
 </script>
 </body>
 </html>
+  <title>Moorhuhn-Logos — Demo</title>

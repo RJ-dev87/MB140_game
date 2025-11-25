@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Moorhuhn-Logos — Demo</title>
   <style>
-    :root{--bg:#0b1220;--panel:#111827;--accent:#f59e000;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}    :root{--bg:#0b1220;--panel:#111827;--accent:#f59e0b}
+    :root{--bg:#0b1220;--panel:#111827;--accent:#f59e0b}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#132033);font-family:Inter,Arial,Helvetica,sans-serif;color:#fff}
+    .wrap{display:flex;flex-direction:column;align-items:center;padding:12px}
+    canvas{background:#000;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
     .hud{width:800px;display:flex;justify-content:space-between;align-items:center;margin:8px 0}
     .hud .score{font-size:20px;font-weight:700}
     .hud .controls{font-size:13px;opacity:0.9}
@@ -262,5 +265,3 @@
 </script>
 </body>
 </html>
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#132033);font-family:Inter,Arial,Helvetica,sans-serif;color:#fff}
-    .wrap{display:flex;flex-direction:column;align-items:center;padding:12px}

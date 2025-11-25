@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Moorhuhn-Logos — Demo</title>
   <style>
-    :root{--bg:#0b1220;--panel:#111827;--accent:#f59e0b}
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#132033);font-family:Inter,Arial,Helvetica,sans-serif;color:#fff}
-    .wrap{display:flex;flex-direction:column;align-items:center;padding:12px}
-    canvas{background:#000;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+    :root{--bg:#0b1220;--panel:#111827;--accent:#f59e000;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}    :root{--bg:#0b1220;--panel:#111827;--accent:#f59e0b}
     .hud{width:800px;display:flex;justify-content:space-between;align-items:center;margin:8px 0}
     .hud .score{font-size:20px;font-weight:700}
     .hud .controls{font-size:13px;opacity:0.9}
@@ -23,7 +20,7 @@
       <div class="score">Punkte: <span id="score">0</span></div>
       <div class="controls">
         <button id="restart">Neu starten</button>
-        <span style="margin-left:12px">Klicke auf Logos, um zu schießen. Mercedes = -100, sonst +100.</span>
+        <span style="margin-left:12px">Mercedes = -100 Punkte. Klein = 150, Mittel = 100, Groß = 50 Punkte.</span>
       </div>
       <div class="timer">Zeit: <span id="timer">90</span>s</div>
     </div>
@@ -64,8 +61,6 @@
   let entities = [];
   let lastSpawn = 0;
   const spawnInterval = 900;
-  const targetMinSpeed = 0.6;
-  const targetMaxSpeed = 2.0;
 
   const images = {};
   let loaded = 0, toLoad = brands.length;
@@ -94,18 +89,32 @@
     img.onerror = () => { images[b] = makeFallbackCanvas(b.split(/[- ]/)[0].slice(0,3)); if(++loaded === toLoad) start(); };
   });
 
+  // Größen und Punkte
+  const sizeOptions = [
+    {size: 40, points: 150}, // klein
+    {size: 80, points: 100}, // mittel
+    {size: 120, points: 50}  // groß
+  ];
+
+  // Geschwindigkeitsoptionen (unabhängig von Größe)
+  const speedOptions = [0.6, 1.2, 2.5]; // langsam, mittel, schnell
+
   function spawnRandom(){
     const brand = brands[Math.floor(Math.random() * brands.length)];
-    const size = 64 + Math.random()*40;
+    const sizeData = sizeOptions[Math.floor(Math.random() * sizeOptions.length)];
+    const speed = speedOptions[Math.floor(Math.random() * speedOptions.length)];
     const fromLeft = Math.random() < 0.5;
-    const x = fromLeft ? -size : W + size;
+    const x = fromLeft ? -sizeData.size : W + sizeData.size;
     const y = 80 + Math.random() * (H - 160);
-    const vx = (fromLeft ? 1 : -1) * (targetMinSpeed + Math.random() * (targetMaxSpeed - targetMinSpeed));
+    const vx = (fromLeft ? 1 : -1) * speed;
     const rotSpeed = (Math.random()-0.5) * 0.01; // langsamer
     const wavePhase = Math.random() * Math.PI * 2;
-    const waveAmplitude = 30 + Math.random() * 20;
-    const waveFrequency = 0.002 + Math.random() * 0.001;
-    entities.push({x,y,vx,brand,img:images[brand],size,rot:0,rotSpeed,wavePhase,waveAmplitude,waveFrequency});
+    const waveAmplitude = 60 + Math.random() * 40; // stärkere Wellenbewegung
+    const waveFrequency = 0.003 + Math.random() * 0.002;
+    entities.push({
+      x,y,vx,brand,img:images[brand],size:sizeData.size,rot:0,rotSpeed,
+      wavePhase,waveAmplitude,waveFrequency,points:sizeData.points
+    });
   }
 
   let lastTime = performance.now();
@@ -139,7 +148,7 @@
     entities.forEach(e => {
       e.x += e.vx * dt * 0.06;
       e.wavePhase += e.waveFrequency * dt;
-      e.y += Math.sin(e.wavePhase) * 0.5; // Wellenbewegung
+      e.y += Math.sin(e.wavePhase) * (e.waveAmplitude * 0.02); // stärkere Wellenbewegung
       e.rot += e.rotSpeed * dt;
     });
 
@@ -213,8 +222,7 @@
       const dist = Math.sqrt(dx*dx + dy*dy);
       const hitRadius = ent.size * 0.45;
       if (dist <= hitRadius){
-        const brand = ent.brand;
-        const points = (brand === 'Mercedes') ? -100 : 100;
+        const points = (ent.brand === 'Mercedes') ? -100 : ent.points;
         score += points;
         scoreEl.textContent = score;
 
@@ -254,3 +262,5 @@
 </script>
 </body>
 </html>
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#132033);font-family:Inter,Arial,Helvetica,sans-serif;color:#fff}
+    .wrap{display:flex;flex-direction:column;align-items:center;padding:12px}
